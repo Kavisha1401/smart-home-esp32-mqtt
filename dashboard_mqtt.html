@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Home Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --line:#d6dce2; --ink:#16202a; --mut:#66727e;
+  --acc:#0e5a8a; --ok:#1b7f5c; --bad:#b3261e; --warn:#a96a0c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+main{max-width:980px;margin:0 auto;padding:24px 18px 48px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:20px}
+h1{margin:0;font-size:1.5rem;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--mut);margin-top:2px}
+.status{display:flex;align-items:center;gap:8px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.status.up .dot{background:var(--ok)}
+.status small{display:block;font-weight:400;color:var(--mut)}
+#alert{display:none;margin-bottom:20px;padding:12px 16px;border-left:4px solid var(--bad);background:#fbeceb;color:#7d1a14;font-weight:600}
+#alert small{display:block;font-weight:400}
+h2{margin:28px 0 10px;font-size:.95rem;font-weight:700;color:var(--mut)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.metric{padding:16px 18px;border-right:1px solid var(--line)}
+.metric:last-child{border-right:0}
+.metric .k{color:var(--mut)}
+.metric .v{font-size:2rem;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+.metric .v small{font-size:.95rem;font-weight:500;color:var(--mut);margin-left:3px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.chart{padding:14px 16px 10px}
+.chart .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.chart .name{font-weight:600}
+.chart .now{font-weight:700;font-size:1.15rem}
+.chart .tag{font-weight:600;font-size:.85rem;padding:2px 8px;border-radius:99px;background:#e4f2ec;color:var(--ok);margin-left:8px}
+.chart .tag.bad{background:#fbeceb;color:var(--bad)}
+svg.plot{display:block;width:100%;height:auto;margin-top:8px}
+.foot{display:flex;justify-content:space-between;color:var(--mut);font-size:.8rem;margin-top:2px}
+.rows .row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.rows .row:last-child{border-bottom:0}
+.row .n{font-weight:600}
+.row .d{color:var(--mut);font-size:.9rem}
+.sw{width:50px;height:28px;border-radius:99px;border:0;background:#aab4bd;position:relative;cursor:pointer;flex:none;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .15s}
+.sw[aria-checked="true"]{background:var(--acc)}
+.sw[aria-checked="true"]::after{left:25px}
+.sw:disabled{opacity:.45;cursor:not-allowed}
+.sw:focus-visible{outline:3px solid #7fb4d9;outline-offset:2px}
+#log{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto}
+#log li{display:flex;gap:16px;padding:9px 18px;border-bottom:1px solid var(--line)}
+#log li:last-child{border-bottom:0}
+#log time{color:var(--mut);flex:none;width:72px}
+#log li.bad{color:var(--bad);font-weight:600}
+#log li.empty{color:var(--mut)}
+.line{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round}
+.grid{stroke:var(--line);stroke-width:1}
+.thr{stroke:var(--bad);stroke-width:1;stroke-dasharray:4 4}
+.lbl{fill:var(--mut);font-size:10px;font-family:inherit}
+@media (max-width:560px){.metric{border-right:0;border-bottom:1px solid var(--line)}.metric:last-child{border-bottom:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1><span id="title">Hall</span> overview</h1>
+      <div class="sub" id="seen">Waiting for the ESP32</div>
+    </div>
+    <div class="status" id="conn"><span class="dot"></span><div><span id="connText">Connecting</span><small>broker.hivemq.com</small></div></div>
+  </header>
+
+  <div id="alert" role="alert"></div>
+
+  <h2>Environment</h2>
+  <div class="panel metrics">
+    <div class="metric"><div class="k">Temperature</div><div class="v"><span id="t">--</span><small>°C</small></div></div>
+    <div class="metric"><div class="k">Humidity</div><div class="v"><span id="h">--</span><small>%</small></div></div>
+    <div class="metric"><div class="k">Light level</div><div class="v"><span id="lux">--</span><small>lux</small></div></div>
+    <div class="metric"><div class="k">Motion</div><div class="v" style="font-size:1.5rem;padding-top:6px"><span id="m">--</span></div></div>
+  </div>
+
+  <h2>Trends</h2>
+  <div class="charts">
+    <div class="panel chart">
+      <div class="head"><span class="name">Gas level</span><span><span class="now" id="gNow">--</span><span class="tag" id="gTag">Normal</span></span></div>
+      <svg class="plot" id="gPlot" viewBox="0 0 600 150" role="img" aria-label="Gas level over time"></svg>
+      <div class="foot"><span>Last 2 minutes</span><span>Dashed line: leak limit (400)</span></div>
+    </div>
+    <div class="panel chart">
+      <div class="head"><span class="name">Temperature</span><span class="now" id="tNow">--</span></div>
+      <svg class="plot" id="tPlot" viewBox="0 0 600 150" role="img" aria-label="Temperature over time"></svg>
+      <div class="foot"><span>Last 2 minutes</span><span>Scale 0 to 50 °C</span></div>
+    </div>
+  </div>
+
+  <h2>Devices</h2>
+  <div class="panel rows">
+    <div class="row"><div><div class="n">Light</div><div class="d" id="s-light">State unknown</div></div><button class="sw" id="btn-light" role="switch" aria-checked="false" aria-label="Light" disabled></button></div>
+    <div class="row"><div><div class="n">Fan</div><div class="d" id="s-fan">State unknown</div><div class="d">Switches on automatically when gas goes above 400</div></div><button class="sw" id="btn-fan" role="switch" aria-checked="false" aria-label="Fan" disabled></button></div>
+  </div>
+
+  <h2>Activity</h2>
+  <div class="panel"><ul id="log"><li class="empty">No activity yet</li></ul></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+// ===== CHANGE THESE IF NEEDED =====
+const BASE = "sh/lv/home/";   // must match BASE in the ESP32 sketch
+const ROOM = "hall";          // must match ROOM in the ESP32 sketch
+const BROKER = "wss://broker.hivemq.com:8884/mqtt";
+// ==================================
+
+const $ = id => document.getElementById(id);
+const NAME = ROOM.charAt(0).toUpperCase() + ROOM.slice(1);
+const state = { light: null, fan: null };
+const sentAt = { light: null, fan: null };
+const N = 60;                       // points kept per chart (about 2 minutes)
+const hist = { g: [], t: [] };
+let alertTimer = null;
+let leak = false;
+
+$("title").textContent = NAME;
+const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+function log(text, bad) {
+  const ul = $("log");
+  if (ul.firstChild && ul.firstChild.className === "empty") ul.innerHTML = "";
+  const li = document.createElement("li");
+  if (bad) li.className = "bad";
+  li.innerHTML = "<time></time><span></span>";
+  li.children[0].textContent = clock();
+  li.children[1].textContent = text;
+  ul.insertBefore(li, ul.firstChild);
+  while (ul.children.length > 30) ul.removeChild(ul.lastChild);
+}
+
+function setConn(up, text) {
+  $("conn").classList.toggle("up", up);
+  $("connText").textContent = text;
+  $("btn-light").disabled = !up;
+  $("btn-fan").disabled = !up;
+}
+
+function plot(svg, data, max, limit) {
+  const W = 600, H = 150, P = 18, step = W / (N - 1);
+  const y = v => H - P - (Math.max(0, Math.min(max, v)) / max) * (H - 2 * P);
+  let s = "";
+  [0, max / 2, max].forEach(v => {
+    s += '<line class="grid" x1="0" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '"/>';
+    s += '<text class="lbl" x="4" y="' + (y(v) - 3) + '">' + Math.round(v) + '</text>';
+  });
+  if (limit) s += '<line class="thr" x1="0" x2="' + W + '" y1="' + y(limit) + '" y2="' + y(limit) + '"/>';
+  if (data.length > 1) {
+    const pts = data.map((v, i) => (W - (data.length - 1 - i) * step).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
+    s += '<polyline class="line" points="' + pts + '"/>';
+  }
+  svg.innerHTML = s;
+}
+
+function showDevice(dev) {
+  const on = state[dev] === true;
+  $("btn-" + dev).setAttribute("aria-checked", on);
+  $("s-" + dev).textContent = state[dev] === null ? "State unknown" : (on ? "On" : "Off");
+}
+
+function showAlert(text) {
+  const el = $("alert");
+  el.innerHTML = "<span></span><small>Received at " + clock() + "</small>";
+  el.firstChild.textContent = text;
+  el.style.display = "block";
+  clearTimeout(alertTimer);
+  alertTimer = setTimeout(() => { el.style.display = "none"; }, 30000);
+}
+
+const client = mqtt.connect(BROKER, {
+  clientId: "dash-" + Math.random().toString(16).slice(2, 8),
+  reconnectPeriod: 3000
+});
+
+client.on("connect", () => { setConn(true, "Connected"); client.subscribe(BASE + "#"); log("Connected to broker"); });
+client.on("reconnect", () => setConn(false, "Reconnecting"));
+client.on("close", () => setConn(false, "Disconnected"));
+client.on("error", () => setConn(false, "Connection error"));
+
+client.on("message", (topic, payload) => {
+  const msg = payload.toString();
+
+  if (topic === BASE + ROOM + "/sensors") {
+    let d;
+    try { d = JSON.parse(msg); } catch (e) { return; }
+    $("t").textContent = d.t;
+    $("h").textContent = d.h;
+    $("lux").textContent = d.lux;
+    $("m").textContent = d.m ? "Detected" : "None";
+    $("tNow").textContent = d.t + " °C";
+    $("gNow").textContent = d.g;
+    hist.g.push(d.g); hist.t.push(d.t);
+    if (hist.g.length > N) { hist.g.shift(); hist.t.shift(); }
+    plot($("gPlot"), hist.g, 1000, 400);
+    plot($("tPlot"), hist.t, 50, 0);
+    const bad = d.g > 400;
+    $("gTag").textContent = bad ? "Leak detected" : "Normal";
+    $("gTag").classList.toggle("bad", bad);
+    if (bad !== leak) { leak = bad; log(bad ? "Gas above limit (" + d.g + ")" : "Gas back to normal (" + d.g + ")", bad); }
+    $("seen").textContent = "Last update " + clock();
+    return;
+  }
+
+  if (topic === BASE + "alerts") { showAlert(msg); log(msg, true); return; }
+
+  for (const dev of ["light", "fan"]) {
+    if (topic === BASE + ROOM + "/" + dev + "/state") {
+      const on = (msg === "ON"), before = state[dev];
+      state[dev] = on;
+      showDevice(dev);
+      const label = dev.charAt(0).toUpperCase() + dev.slice(1);
+      if (sentAt[dev] !== null) {
+        log(label + " turned " + (on ? "on" : "off") + " (confirmed in " + Math.round(performance.now() - sentAt[dev]) + " ms)");
+        sentAt[dev] = null;
+      } else if (before !== null && before !== on) {
+        log(label + " turned " + (on ? "on" : "off"));
+      }
+    }
+  }
+});
+
+function toggle(dev) {
+  sentAt[dev] = performance.now();
+  client.publish(BASE + ROOM + "/" + dev + "/set", state[dev] ? "OFF" : "ON");
+}
+$("btn-light").addEventListener("click", () => toggle("light"));
+$("btn-fan").addEventListener("click", () => toggle("fan"));
+
+plot($("gPlot"), [], 1000, 400);
+plot($("tPlot"), [], 50, 0);
+</script>
+</body>
+</html>
