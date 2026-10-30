@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "author": "smart-home",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -100, "left": 170, "attrs": {} },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir1", "top": -110, "left": 290, "attrs": {} },
+    { "type": "wokwi-gas-sensor", "id": "gas1", "top": 90, "left": 270, "attrs": {} },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": 230, "left": 260, "attrs": {} },
+    { "type": "wokwi-led", "id": "led1", "top": -90, "left": -50, "attrs": { "color": "yellow" } },
+    { "type": "wokwi-led", "id": "led2", "top": -90, "left": -100, "attrs": { "color": "blue" } }
+  ],
+  "connections": [
+    [ "dht1:VCC", "esp:3V3", "red", [] ],
+    [ "dht1:GND", "esp:GND.1", "black", [] ],
+    [ "dht1:SDA", "esp:D15", "green", [] ],
+    [ "pir1:VCC", "esp:3V3", "red", [] ],
+    [ "pir1:GND", "esp:GND.1", "black", [] ],
+    [ "pir1:OUT", "esp:D13", "green", [] ],
+    [ "gas1:VCC", "esp:3V3", "red", [] ],
+    [ "gas1:GND", "esp:GND.1", "black", [] ],
+    [ "gas1:AOUT", "esp:D34", "orange", [] ],
+    [ "ldr1:VCC", "esp:3V3", "red", [] ],
+    [ "ldr1:GND", "esp:GND.1", "black", [] ],
+    [ "ldr1:AO", "esp:D35", "purple", [] ],
+    [ "led1:A", "esp:D26", "yellow", [] ],
+    [ "led1:C", "esp:GND.1", "black", [] ],
+    [ "led2:A", "esp:D27", "blue", [] ],
+    [ "led2:C", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}
